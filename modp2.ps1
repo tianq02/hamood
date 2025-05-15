@@ -1,7 +1,7 @@
 param (
-    # 定义参数 p，表示模数，范围为 1 到 100, 后续演示使用模p乘法群
+    # 定义参数 p，表示模数，范围为 2 到 100, 后续演示使用模p乘法群
     # 推荐尝试7(素数),8(合数),13(嵌套子群),23(安全素数)
-    [Parameter(Position=0)][ValidateRange(1,100)][int64]$p = 7
+    [Parameter(Position=0)][ValidateRange(2,100)][int64]$p = 7
 )
 Write-Host "PowerMod table for $p"
 Write-Host "------------------------"
@@ -22,9 +22,9 @@ for ($i=[int64]1; $i -lt $p; $i++) {
     $ord = $null
     for ($j=[int64]1; $j -lt $p; $j++) {
         if ($ans -eq 1) {
+            # 如果 ans 等于 1，表示当前元素的阶已经找到
             if ($null -eq $ord) {
-                # 如果 ans 等于 1，表示当前元素的阶已经找到
-                # 这些元素是生成元
+                # 这些元素是生成元，属于j阶的子群
                 Write-Host -NoNewline -ForegroundColor Green "1($i)*`t"
                 $ord = $j
                 # 将元素(行号i)与其阶(ord)存入哈希表
@@ -55,17 +55,54 @@ for ($i=[int64]1; $i -lt $p; $i++) {
     }
 }
 
-# 输出各子群的元素
-Write-Host "`nSubgroups:"   
-foreach ($key in $genGroups.Keys) {
-    Write-Host "ord = $key, Count = $($ordGroups[$key].Count), Member = {$($ordGroups[$key] -join ', ')}, Gen = {$($genGroups[$key] -join ', ')}"
-}
-
-if ($ordGroups.ContainsKey([int64]($p-1))) {
-    Write-Host "Hooray! $p is a prime number!"
+# 不要采用ordGroups遍历，那里含有一堆平凡/嵌套的子群
+# genGroups中的元素都是生成元，能避免平凡子群的干扰
+# 存在p-1阶的子群，说明p的欧拉函数值φ(p) = p-1，p是素数
+if ($genGroups.ContainsKey([int64]($p-1))) {
+    # 对于安全素数p，p-1 = 2q，q是素数，
+    # 此时模p乘法群的阶p-1只有两个因数2和q
+    # 子群数量为4，分别是1阶、2阶、q阶和p-1阶
+    # 此处以子群数量为4来判断是否是安全素数
+    if ($genGroups.Count -eq 4) {
+        Write-Host "`nHooray! $p is a prime number! A safe prime!"
+    } else {
+        Write-Host "`nHooray! $p is a prime number!"
+    }
 }
 else {
-    Write-Host "Oops! $p is not a prime number!"
+    Write-Host "`nOops! $p is not a prime number! Subgroup analysis is not available.`n"
+    # 对于一个合数，其群的阶并不是 $p-1，而是比 $p-1 小得多
+    # 我们需要过滤掉那些与 $p 不互质的元素，即不属于群的元素
+    # 此外，具有相同阶的成员不一定属于同一个子群
+    # 而且，该群可能根本不是循环群
+    return
+}
+
+# 输出各子群的元素
+Write-Host "`nSubgroups:"
+$found = $false
+foreach ($key in ($genGroups.Keys | Sort-Object -Descending)) {
+    # 将生成元标记为带*号的元素
+    $members = $ordGroups[$key] | ForEach-Object {
+        if ($genGroups[$key] -contains $_) {
+            "*$_"
+        } else {
+            " $_"
+        }
+    }
+    Write-Host "ord = $key, gen = $($genGroups[$key].Count), Member = {$($members -join ', ') }"
+    if ($ordGroups[$key].Count -eq $genGroups[$key].Count + 1) {
+        if ($found) {
+            Write-Host "  * Prime order subgroup.`n"
+        } else {
+            Write-Host "  * Largest prime order subgroup. Pick DH parameter here.`n"
+            $found = $true
+        }
+    } elseif ($key -ne 1) {
+        Write-Host "  * Composite order subgroup.`n"
+    } else {
+        Write-Host "  * Trivial subgroup.`n"
+    }
 }
 
 # 如何阅读程序输出
