@@ -14,33 +14,42 @@ Write-Host "ord"
 # 初始化哈希表用于存储各元素的阶(ord)
 # ord 是指一个元素在模p乘法群中的阶，即最小的正整数 k，使得 a^k ≡ 1 (mod p) 
 $ordGroups = @{}
+$genGroups = @{}
 
 for ($i=[int64]1; $i -lt $p; $i++) {
     Write-Host -NoNewline -ForegroundColor Red "$i`t"
     $ans = [int64]$i
     $ord = $null
     for ($j=[int64]1; $j -lt $p; $j++) {
-        if ($ans -eq 1 -and $null -eq $ord) {
-            $ord = [int64]$j
-            # 如果 ans 等于 1，表示当前元素的阶已经找到
-            # 这些元素是生成元
-            Write-Host -NoNewline -ForegroundColor Green "1($i)*`t"
-        }                 
-        elseif ($ans -eq 1) {
-            # 这些元素在也在群中，但不是生成元
-            Write-Host -NoNewline -ForegroundColor Green "1($i)`t"
+        if ($ans -eq 1) {
+            if ($null -eq $ord) {
+                # 如果 ans 等于 1，表示当前元素的阶已经找到
+                # 这些元素是生成元
+                Write-Host -NoNewline -ForegroundColor Green "1($i)*`t"
+                $ord = $j
+                # 将元素(行号i)与其阶(ord)存入哈希表
+                if (-not $genGroups.ContainsKey([int64]$ord)) {
+                    $genGroups[[int64]$ord] = @()
+                }
+                $genGroups[[int64]$ord] += [int64]$i
+            } else {
+                # 这些元素在也在群中，但不是生成元
+                Write-Host -NoNewline -ForegroundColor Green "1($i)`t"
+            }
+            # 将元素(行号i)与其所属子群存入哈希表
+            # 这里没有处理平凡子群，后面通过遍历genGroup而不是ordGroup来处理
+            if (-not $ordGroups.ContainsKey([int64]$j)) {
+                $ordGroups[[int64]$j] = @()
+            }
+            $ordGroups[[int64]$j] += [int64]$i
         } else {
             Write-Host -NoNewline "$ans`t"
         }
-        $ans = [int64]($ans * $i % $p)
+        # 计算 ans = (ans * i) % p
+        $ans = ($ans * [int64]$i) % $p
     }
     if ($null -ne $ord) {
         Write-Host "$ord"
-        # 将元素(行号i)与其阶(ord)存入哈希表
-        if (-not $ordGroups.ContainsKey([int64]$ord)) {
-            $ordGroups[[int64]$ord] = @()
-        }
-        $ordGroups[[int64]$ord] += [int64]$i
     } else {
         Write-Host "N/A"
     }
@@ -48,8 +57,8 @@ for ($i=[int64]1; $i -lt $p; $i++) {
 
 # 输出各子群的元素
 Write-Host "`nSubgroups:"   
-foreach ($key in $ordGroups.Keys) {
-    Write-Host "ord = $key, Count = $($ordGroups[$key].Count), Member = {$($ordGroups[$key] -join ', ')}"
+foreach ($key in $genGroups.Keys) {
+    Write-Host "ord = $key, Count = $($ordGroups[$key].Count), Member = {$($ordGroups[$key] -join ', ')}, Gen = {$($genGroups[$key] -join ', ')}"
 }
 
 if ($ordGroups.ContainsKey([int64]($p-1))) {
