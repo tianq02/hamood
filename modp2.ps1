@@ -74,7 +74,8 @@ if ($ordElements.ContainsKey([int64]($modP-1))) {
     if ($ordElements.Count -eq 4) {
         Write-Host "`nHooray! $modP is a prime number! A safe prime!"
     } else {
-        Write-Host "`nHooray! $modP is a prime number!"
+        Write-Host "`nHooray! $modP is a prime number! But it's not a safe prime!"
+
     }
 }
 else {
